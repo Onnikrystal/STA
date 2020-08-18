@@ -1,6 +1,8 @@
 ---
 title: "Predictive Modeling Exercises"
-author: "Shan Ali, Shifan Hu, Sitong Li"
+author: 
+- "Shan Ali, Shifan Hu, Sitong Li"
+- "sca763, sh45954, sl43736"
 date: "8/17/2020"
 output: pdf_document
 ---
@@ -23,6 +25,7 @@ library(MASS)
 library(knitr)
 library(quantmod)
 library(foreach)
+library(dplyr)
 ```
 
 ```{r Q1.1, warning = FALSE}
@@ -155,7 +158,7 @@ ggplot(data = dat.new, aes(x = ArrDelay, y = DepDelay))+
 It shows strong linear dependence between Arrival Delay and Departure Delay, but also prove that the delay of arrival has no obvious relationship with the day of the week of the arrival date.
 
 ## Portfolio modeling
-```{r, echo=FALSE,message=FALSE, warning=FALSE, include=FALSE}
+```{r, warning=FALSE, message=FALSE, include=TRUE}
 mystocks = c("PWZ", "GLD", "SPY")
 getSymbols(mystocks, from = "2015-01-01")
 PWZa = adjustOHLC(PWZ)
@@ -164,7 +167,6 @@ SPYa = adjustOHLC(SPY)
 all_returns = cbind(	ClCl(PWZa),
 								ClCl(GLDa),
 								ClCl(SPYa))
-
 set.seed(8)
 all_returns = as.matrix(na.omit(all_returns))
 initial_wealth = 10000
@@ -196,22 +198,17 @@ The overall number looks pretty good, with an average profit of \$79.06394 earne
 The total value of this portofolio is \$10000. the VaR on an asset is \$-468.1377 at 20-days, 95% confidence level, there is a only a 5% chance that the value of the asset will drop more than $468.1377 million over any 20 days.
 
 ## Market segmentation
-```{r, message=FALSE, warning=FALSE, include=FALSE}
-# rm(list=ls())
+```{r, warning=FALSE}
+
 socialmarketing = read.csv("social_marketing.csv")
 socialmarketings <- subset(socialmarketing, select = -c(X))
-# head(cor(socialmarketing), 5)
 
 PCAsocial = prcomp(socialmarketings, scale=TRUE)
 
 ## variance plot
 plot(PCAsocial)
 # head(summary(PCAsocial), 5)
-# round(PCAsocial$rotation[,1:3],2)
-
-loadings_summary = PCAsocial$rotation %>%
-  as.data.frame() %>%
-  rownames_to_column('Type')
+round(PCAsocial$rotation[,1:3],2)
 ```
 
 Basically every clustering represent a cluster of users and we can see by looking at each cluster that, what a cluster of users typically will post about what.
@@ -245,11 +242,13 @@ clust1$center
 ```{r}
 clust1$center[1,]*sigma + mu
 ```
+
 In cluster 1, we can see that the most these people talk about is automotive, shopping, news, sports_fandom, computers and fitness. It also has a slighlty higher adult then spam. 
 
 ```{r}
 clust1$center[2,]*sigma + mu
 ```
+
 In cluster 2, we can see that the most these people talk about is automotive, online_gaming, college_uni, photo_sharing, and chatter. It also has a slighlty higher adult then spam. 
 
 ```{r}
@@ -261,23 +260,26 @@ In cluster 3, we can see that the most these people talk about is health_nutriti
 ```{r}
 clust1$center[4,]*sigma + mu
 ```
-In cluster 4, we can see that the most these people talk about is chatter, religion, photo_sharing, photo_sharing, food and parenting. It also has a slighlty higher adult then spam. This cluster is again different from others, and this is the first time we hace religion as a factor so big.
+
+In cluster 4, we can see that the most these people talk about is chatter, religion, photo_sharing, photo_sharing, food and parenting. It also has a slighlty higher adult then spam. This cluster is again different from others, and this is the first time we have religion as a factor so big.
 
 ```{r}
 clust1$center[5,]*sigma + mu
 ```
+
 In cluster 5, we can see that the most these people talk about is chatter, health_nutrition, personal_fitness, cooking, outdoors. It also has a slighlty higher adult then spam. But we have a spam that's bigger than the others.
 
 ```{r}
 clust1$center[6,]*sigma + mu
 ```
+
 This is a final cluster that has not a lot different between each other, they generally talk about everything and maybe a little bit more on photo_sharing.
 
 ```{r}
 qplot(religion, parenting, data=socialmarketings, color=factor(clust1$cluster))
 ```
-We can also visualize and this gives a clear view, the same as what we had found above. Cluster four seems to have a lot of focus on religion and parenting, way more than anyother clusters.
 
+We can also visualize and this gives a clear view, the same as what we had found above. Cluster four seems to have a lot of focus on religion and parenting, way more than anyother clusters.
 
 ## Author Attribution
 
@@ -570,8 +572,4 @@ inspect(sort(associa_rules, by = 'lift')[1:10])
 plot(associa_rules, method = "graph",  
      measure = "confidence", shading = "lift")
 ```
-
-
-
-
 
