@@ -1,0 +1,577 @@
+---
+title: "Predictive Modeling Exercises"
+author: "Shan Ali, Shifan Hu, Sitong Li"
+date: "8/17/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Visual Story Telling Part 1: Green Buildings
+
+```{r Q1.0, include = FALSE}
+#Question 1
+# load libraries
+library(mosaic)
+library(tidyverse)
+library(ggplot2)
+library(corrplot)
+library(MASS)
+library(knitr)
+library(quantmod)
+library(foreach)
+```
+
+```{r Q1.1, warning = FALSE}
+# read file
+gb = read.csv('greenbuildings.csv')
+
+# check for confounding variables
+green = gb[gb$green_rating == 1,]
+ngreen = gb[gb$green_rating == 0,]
+
+```
+
+From my exploration, I agree with the staff report. The data does support the conclusion that green buildings have higher median rent compared to that of regular buildings. However, regular buildings do display greater variability which could indicate confounding factors.
+
+```{r Q1.2, echo=FALSE, fig.align='center', fig.height = 3, fig.width = 5}
+# median rent analysis <- make boxplot
+ggplot(data = gb) + 
+  geom_boxplot(mapping = aes(group=green_rating, y=Rent, fill=green_rating)) +
+  labs(title="Median Rent of Green vs Regular buildings",x="Green Rating", y = "Rent")
+
+#summary(green$Rent)
+#summary(ngreen$Rent)
+```
+
+Thus, I explored for confounding variables that disrupted this position; exploring the data correlation by size, cluster, class, and precipitation. The exploration shows little correlation between rent prices and size, even accounting for cluster, class, and green rating. 
+
+```{r Q1.3, echo=FALSE, fig.align='center', fig.height = 3, fig.width = 5}
+# rent and size  graph
+ggplot(data = gb) + 
+  geom_point(mapping = aes(x=size, y=Rent, color=green_rating)) +
+  labs(title="Size vs Rent",x="Size", y = "Rent")
+
+# correlation plot
+corrplot(cor(green[,-c(4,14)]),
+         title='Building correlation plot',
+         order='AOE')
+```
+
+Upon further analysis, the exploration does show evidence of confounding variables. For example, median rent for buildings in class A were slightly higher for green buildings, but had less of a spread than median rent not accounting for class. This trend also holds true for Class B buildings and supports the idea that class may also influence Rent; with green building status being less important for class a buildings.
+
+```{r Q1.4, echo=FALSE, fig.align='center', fig.height = 3, fig.width = 5}
+# confounding var analysis
+
+# class a check
+ggplot(data = green) + 
+  geom_boxplot(mapping = aes(group=class_a, y=Rent,fill=class_a)) +
+  labs(title= "Rent of Class A vs Non-Class A Green buildings",
+       x="Class A Status", y = "Rent")
+
+ggplot(data = ngreen) + 
+  geom_boxplot(mapping = aes(group=class_a, y=Rent,fill=class_a)) +
+  labs(title= "Rent of Class A vs Non-Class A Regular buildings",
+       x="Class A Status", y = "Rent")
+
+# class a check
+#summary(green[green$class_a == 1,]$Rent)
+#summary(ngreen[ngreen$class_a == 1,]$Rent)
+
+# class b check
+#summary(green[green$class_b == 1,]$Rent)
+#summary(ngreen[ngreen$class_b == 1,]$Rent)
+```
+
+This would then support the theory that the staff report was insufficient in its analysis, specifically in the profit projections. The presence of confounding factors necessitates the need to preform proper modeling to determine the potential lift in rent going green would make and then how it would price out. We recommend conducting a multi-variable regression or KNN analysis to determine most similar green and regular buildings and then compare the predicted rents to determine if going green is truly the better economic decision. 
+
+## Visual story telling part 2: flights at ABIA
+
+In this section, I would like to figure out the distribution of arrival delay (in minutes) in different day in week (between 1 to 7).
+
+For this purpose, we plot a density distribution plot because we can review the density distribution of each attribute broken down by class value.
+
+Like the scatter plot, the density plot by class can help see the separation of classes. It can also help to understand the overlap in class values for an attribute.
+
+```{r Q2.1, warning=FALSE}
+# read data
+dat <- read.csv('ABIA.csv')
+# choose the object variables to small set
+subset1 <- subset(dat,
+                  select = c('ArrDelay',
+                             'DayOfWeek'))
+# delete NA value
+subset1 <- na.omit(subset1)
+
+# check structure
+str(subset1)
+```
+
+```{r Q2.11, echo=FALSE, fig.align='center', fig.height = 3, fig.width = 5}
+# change day of week to factor
+subset1$DayOfWeek <- as.factor(subset1$DayOfWeek)
+# load ggplot package
+library(ggplot2)
+# draw density plot
+ggplot(subset1, aes(x=ArrDelay, colour=DayOfWeek, fill=DayOfWeek)) +
+  geom_density(alpha=.3) +
+  geom_vline(aes(xintercept=mean(ArrDelay),  colour=DayOfWeek),linetype="dashed",color="grey", size=1)+
+  xlab("Arrival Delay(minute)") +  
+  ylab("Density")+
+  theme(legend.position="right")
+
+```
+
+According to the density plot, we have reason to believe that the delay of arrival has no obvious relationship with the day of the week of the arrival date.
+
+So further more, I generate a correlation plot to find out which variable is numerically correlated to arrive delay.
+
+```{r Q2.2, echo=FALSE, fig.align='center', fig.height = 3, fig.width = 5}
+dat.new <- na.omit(dat[,c(4:8,10,12:16,19:21)])
+# create new data
+library(corrplot)
+corrplot(cor(dat.new[,-1]),tl.pos = 'l')
+```
+
+And it turns out to be the Departure delay. Now I use the scatter plot to show that:
+
+```{r Q2.3, warning=FALSE, echo=FALSE, fig.align='center', fig.height = 3, fig.width = 5}
+# Now let's create a scatterplot of ArrDelay versus DepDelay with the color & shape by DayOfWeek. 
+# There is also a regression line with a 95% confidence band.
+# change day of week to factor
+dat.new$DayOfWeek <- as.factor(dat.new$DayOfWeek)
+
+ggplot(data = dat.new, aes(x = ArrDelay, y = DepDelay))+
+  xlab("Arrival Delay(minute)")+
+  ylab("Departure Delay(minute)") +
+  geom_point(aes(color = DayOfWeek,shape=DayOfWeek))+
+  geom_smooth(method='lm')+
+  ggtitle("Scatterplot of ArrDelay versus DepDelay")
+```
+
+It shows strong linear dependence between Arrival Delay and Departure Delay, but also prove that the delay of arrival has no obvious relationship with the day of the week of the arrival date.
+
+## Portfolio modeling
+```{r, echo=FALSE,message=FALSE, warning=FALSE, include=FALSE}
+mystocks = c("PWZ", "GLD", "SPY")
+getSymbols(mystocks, from = "2015-01-01")
+PWZa = adjustOHLC(PWZ)
+GLDa = adjustOHLC(GLD)
+SPYa = adjustOHLC(SPY)
+all_returns = cbind(	ClCl(PWZa),
+								ClCl(GLDa),
+								ClCl(SPYa))
+
+set.seed(8)
+all_returns = as.matrix(na.omit(all_returns))
+initial_wealth = 10000
+sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+	total_wealth = initial_wealth
+	weights = c(0.2, 0.2, 0.6)
+	holdings = weights * total_wealth
+	n_days = 20
+	wealthtracker = rep(0, n_days)
+	for(today in 1:n_days) {
+		return.today = resample(all_returns, 1, orig.ids=FALSE)
+		holdings = holdings + holdings*return.today
+		total_wealth = sum(holdings)
+		wealthtracker[today] = total_wealth
+	}
+	wealthtracker
+}
+
+# Profit/loss
+mean(sim1[,n_days])
+mean(sim1[,n_days] - initial_wealth)
+hist(sim1[,n_days]- initial_wealth, breaks=30)
+
+# 5% value at risk:
+quantile(sim1[,n_days]- initial_wealth, prob=0.05)
+
+```
+The overall number looks pretty good, with an average profit of \$79.06394 earned over 20 days. That's 0.7% percent earnings over 20 days. I choose gold as one of the factor and I'm pretty sure it explains the data, because gold price has been increasing like crazy among this days.
+The total value of this portofolio is \$10000. the VaR on an asset is \$-468.1377 at 20-days, 95% confidence level, there is a only a 5% chance that the value of the asset will drop more than $468.1377 million over any 20 days.
+
+## Market segmentation
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+# rm(list=ls())
+socialmarketing = read.csv("social_marketing.csv")
+socialmarketings <- subset(socialmarketing, select = -c(X))
+# head(cor(socialmarketing), 5)
+
+PCAsocial = prcomp(socialmarketings, scale=TRUE)
+
+## variance plot
+plot(PCAsocial)
+# head(summary(PCAsocial), 5)
+# round(PCAsocial$rotation[,1:3],2)
+
+loadings_summary = PCAsocial$rotation %>%
+  as.data.frame() %>%
+  rownames_to_column('Type')
+```
+
+Basically every clustering represent a cluster of users and we can see by looking at each cluster that, what a cluster of users typically will post about what.
+
+And by looking the top five most important feature of each cluster, we can have a roughly thought of how the cluster works. For example, adult and spam are more targeted to the college_uni users, or online_gaming users. If a person care about fitness, they will also care about their diet, post things about outdoors activites, and etc.
+
+Then we ran K-means.
+```{r}
+library(ggplot2)
+library(LICORS)  # for kmeans++
+library(foreach)
+library(mosaic)
+
+X = socialmarketings[,-(38:39)]
+X = scale(X, center=TRUE, scale=TRUE)
+```
+
+First we scale the data, I have included spam and adult because by running the upper model, we can find that they actually have relation to other features. It would be feasible if we include them
+
+```{r}
+mu = attr(X,"scaled:center")
+sigma = attr(X,"scaled:scale")
+
+set.seed(8)
+# Run k-means with 6 clusters and 25 starts
+clust1 = kmeans(X, 6, nstart=25)
+
+clust1$center
+```
+
+```{r}
+clust1$center[1,]*sigma + mu
+```
+In cluster 1, we can see that the most these people talk about is automotive, shopping, news, sports_fandom, computers and fitness. It also has a slighlty higher adult then spam. 
+
+```{r}
+clust1$center[2,]*sigma + mu
+```
+In cluster 2, we can see that the most these people talk about is automotive, online_gaming, college_uni, photo_sharing, and chatter. It also has a slighlty higher adult then spam. 
+
+```{r}
+clust1$center[3,]*sigma + mu
+```
+
+In cluster 3, we can see that the most these people talk about is health_nutrition, current_events, photo_sharing, beauty, cooking and fashion It also has a slighlty higher adult then spam. This cluster has a visually different than the upper two, and we can conclude with a confidence that we could target this cluster with its important feature, which we may skip for the upper two.
+
+```{r}
+clust1$center[4,]*sigma + mu
+```
+In cluster 4, we can see that the most these people talk about is chatter, religion, photo_sharing, photo_sharing, food and parenting. It also has a slighlty higher adult then spam. This cluster is again different from others, and this is the first time we hace religion as a factor so big.
+
+```{r}
+clust1$center[5,]*sigma + mu
+```
+In cluster 5, we can see that the most these people talk about is chatter, health_nutrition, personal_fitness, cooking, outdoors. It also has a slighlty higher adult then spam. But we have a spam that's bigger than the others.
+
+```{r}
+clust1$center[6,]*sigma + mu
+```
+This is a final cluster that has not a lot different between each other, they generally talk about everything and maybe a little bit more on photo_sharing.
+
+```{r}
+qplot(religion, parenting, data=socialmarketings, color=factor(clust1$cluster))
+```
+We can also visualize and this gives a clear view, the same as what we had found above. Cluster four seems to have a lot of focus on religion and parenting, way more than anyother clusters.
+
+
+## Author Attribution
+
+In this question, I am building the best predictive model for author attribution to the Reuters C50 corpus. This problem involved text processing and tokenization, then modeling. 
+
+First, I defined several text processing functions to simplify the text processing scripts since we need to process both the C50train and C50test data sets. The main function *textPipe* reads the files, trims and updates the file names, creates a raw text mining corpus, and finishes with tokenization and weighing. To tokenize, I made everything lowercase, removed numbers and punctuation, dropped all white space, and removed the stopwords ('en'). This simplifies the text; reducing the information to the more relevant types and minimizes later computation requirements. I then converted the corpus into a doc-term-matrix and dropped the sparse terms. This reduces the terms significantly from about 32600 to 800 terms. Finally, *textPipe* applies TF-IDF weights to clean low and excessively high frequencies. I then applied the processing functions to the test and train directories, generating a X and Y train and test data sets.
+
+```{r Q5.0, include=FALSE}
+
+####################################
+#####  Step 0: Load Libraries  #####
+####################################
+
+library(tm) 
+library(tidyverse)
+library(slam)
+library(proxy)
+library(class)
+library(randomForest)
+library('e1071')
+library(caret)
+set.seed(1)
+
+```
+
+```{r Q5.1}
+
+###################################
+#####  Step 1: Function Prep  #####
+###################################
+
+# set up better read function to set id and language
+readerPlain = function(fname){
+				readPlain(elem=list(content=readLines(fname)), 
+							id=fname, language='en') }
+
+# main text processing function, for easy test and train processing
+# returns td-idf table
+textPipe = function(cdir){
+  
+  # read all files
+  file_list = Sys.glob(cdir) 
+  C50 = lapply(file_list, readerPlain) 
+  
+  # clean file names to reflect author and entry
+  mynames = file_list %>%
+  	{ strsplit(., '/', fixed=TRUE) } %>%
+  	{ lapply(., tail, n=2) } %>%
+  	{ lapply(., paste0, collapse = '') } %>%
+	  unlist
+    
+  # Rename the articles
+  names(C50) = mynames
+  
+  # create text mining corpus
+  documents_raw = Corpus(VectorSource(C50))
+  
+  # pre-processing for tokenization
+  my_documents = documents_raw %>%
+    tm_map(content_transformer(tolower))  %>%             # make everything lowercase
+    tm_map(content_transformer(removeNumbers)) %>%        # remove numbers
+    tm_map(content_transformer(removePunctuation)) %>%    # remove punctuation
+    tm_map(content_transformer(stripWhitespace))          # remove excess white-space
+
+  # remove stopwords -> may or may not keep
+  my_documents = tm_map(my_documents, content_transformer(removeWords), stopwords("en"))
+
+  # create a doc-term-matrix from the corpus
+  DTM_C50 = DocumentTermMatrix(my_documents)
+
+  # remove sparse terms
+  DTM_C50 = removeSparseTerms(DTM_C50, 0.95) # now ~ 800 terms (versus ~32600 before) -> big changes here people
+
+  # we want TF-IDF weights
+  weightTfIdf(DTM_C50)
+}
+
+# function to get authors for Y
+authorPipe = function(cdir){
+
+  # read all files
+  file_list = Sys.glob(cdir) 
+  C50 = lapply(file_list, readerPlain) 
+
+  # clean file names to reflect author and entry
+  mynames = file_list %>%
+  	{ strsplit(., '/', fixed=TRUE) } %>%
+    { lapply(., head, n=5) } %>%
+    { lapply(., tail, n=1) } %>%
+	  unlist
+  
+  mynames
+}
+
+```
+
+```{r Q5.11, warning = FALSE}
+
+####################################
+#####  Step 2: Text Processing #####
+####################################
+
+train = '../data/ReutersC50/C50train/*/*.txt'
+test = '../data/ReutersC50/C50test/*/*.txt'
+
+X_train = textPipe(train)
+X_test = textPipe(test)
+
+Y_train = authorPipe(train)
+Y_test = authorPipe(test)
+
+```
+
+Next, I began reducing the dimensions to streamline the prediction computation required. First I combined the testing and training X data, converted it to a matrix, and then dropped all columns without any information. This trims the data set and removes and words (types/columns/terms) that are not in both data frames. I then ran a principal component analysis on the training data to compress the information. Upon exploration, approximately 70% of the variance is explained by the first 200 PCs. Reducing the features from >800 to 200 significantly reduces the feature requirement. Using this PC amount, I then set the test and train data sets to the first 200 PC for each set and added their true values (document authors).
+
+```{r Q5.2, warning=FALSE, fig.align='center', fig.height = 3, fig.width = 5}
+
+########################################
+#####  Step 3: Set Test and Train  #####
+########################################
+
+# get test and train as PCA
+# process all documents for PCA, this allows scrubbing of non overlapping types
+X = c(X_train,X_test)
+X = as.matrix(X)
+X = X[,which(colSums(X) != 0)] 
+
+# In case need to split before PCA
+X_train = X[1:2500,]
+X_test = X[2501:5000,]
+
+# split out to isolate train again
+pca_train = prcomp(X_train)
+pca_test = predict(pca_train ,newdata = X_test)
+
+# explore num of PCs to use in model
+plot(pca_train,type='line') 
+var = apply(pca_train$x, 2, var)  
+prop = var / sum(var)
+data = NULL
+data['Acc'] = data.frame(cumsum(pca_train$sdev^2/sum(pca_train$sdev^2)))
+data = data.frame(data)
+data['# PCs'] = 1:859
+
+# PC Accuracy Plot
+ggplot(data = data) + 
+  geom_point(mapping = aes(x=`# PCs`, y=Acc)) +
+  labs(title="Sum PC Accuracy",x="PCs", y = "Accuracy")
+
+# isolate desired PCAs into train and test
+npca = 200 # 200 PCs explain approx. 70% of variance
+pca_train = data.frame(pca_train$x[,1:npca]) #first half is train
+pca_test = data.frame(pca_test[,1:npca]) # 2nd is test
+
+# add Y to get complete DF
+pca_train['author'] = Y_train
+pca_test['author'] = Y_test
+
+```
+
+To predict the authors attribution, I am exploring three model types: random forests, naive Bayes, and KNN. First, I explored random forest using a mtry = 14, which is the rounded squared root of p predictors. This resulted in a testing accuracy of 51.16%. Next, I explored a simpler Niave Bayes model. This resulted in a testing accuracy of 42.80%. Lastly, I explored the KNN model. I compared models of k = 2:20, and discovered the best k = 7. This model with k =7 resulted in a testing accuracy of around 41.04%
+
+```{r Q5.3, echo=FALSE}
+
+##############################
+#####  Step 4: Modeling  #####
+##############################
+
+# define accuracy object
+acc = NULL
+testAct = as.factor(pca_test$author) # get test true
+```
+
+```{r Q5.4, warning=FALSE}
+#################################
+#####  Random Forest Model  #####
+#################################
+
+# set mtry
+mtry = round(sqrt(npca)) # rounded sqrt of number of features
+
+randForst = randomForest(as.factor(author)~., data=pca_train, mtry=mtry, importance=TRUE)
+
+# accuracy check
+testPred = predict(randForst, newdata=pca_test) # get predictions
+temp = as.data.frame(cbind(testAct, testPred)) # codify results
+temp$flag = ifelse(temp$testAct == temp$testPred, 1, 0) # calculate number correct
+acc = c(acc, sum(temp$flag)*100/nrow(temp)) # store accuracy
+``` 
+
+```{r Q5.5, warning=FALSE}
+###############################
+#####  Naive Bayes Model  #####
+###############################
+
+naiBay = naiveBayes(as.factor(author)~., data=pca_train)
+
+# accuracy check
+testPred = predict(naiBay, newdata=pca_test) # get predictions
+temp = as.data.frame(cbind(testAct, testPred)) # codify results
+temp$flag = ifelse(temp$testAct == temp$testPred, 1, 0) # calculate number correct
+acc = c(acc, sum(temp$flag)*100/nrow(temp)) # store accuracy
+``` 
+
+```{r Q5.6, echo=FALSE, fig.align='center', fig.height = 3, fig.width = 5}
+# set test and train
+trainX = pca_train[,1:npca]
+testX = pca_test[,1:npca]
+trainAct = as.factor(pca_train$author) # get train true
+
+# set test range
+kk = 2:20
+out = NULL
+
+# get best k
+for(i in kk){
+  # current model
+  knnPred = knn(trainX, testX, trainAct, k=i)
+
+  # accuracy check
+  temp = as.data.frame(cbind(testAct, knnPred)) # codify results
+  temp$flag = ifelse(temp$testAct == temp$knnPred, 1, 0) # calculate number correct
+  out = c(out, sum(temp$flag)*100/nrow(temp)) # store accuracy
+}
+
+# check for best k
+kacc = data.frame(kk,out)
+
+ggplot(data = kacc) + 
+  geom_point(mapping = aes(x=kk, y=out)) +
+  labs(title="Accuracy at k",x="k", y = "Accuracy")
+
+best = which.max(out)
+
+``` 
+
+```{r Q5.7, warning=FALSE}
+#######################
+#####  Knn Model  #####
+#######################
+
+# best model (k = 7)
+knnPred = knn(trainX, testX, trainAct, k=kk[best])
+
+# accuracy check
+temp = as.data.frame(cbind(testAct, knnPred)) # codify results
+temp$flag = ifelse(temp$testAct == temp$knnPred, 1, 0) # calculate number correct
+acc = c(acc, sum(temp$flag)*100/nrow(temp)) # store accuracy
+
+```
+
+In conclusion, the Random Forest model was the best model generated to predict author attribution. Compare to a baseline accuracy of 2%, all of these models are a significant improvement from random guessing.
+
+```{r Q5.8, echo=FALSE}
+# display accuracies
+actTable = data.frame("Model"=c("Random Forest","Naive Bayes","KNN"),
+                  "Test Accuracy"=acc)
+actTable
+
+```
+
+
+## Association rule mining
+
+In this section, I will use the data on grocery purchases in `groceries.txt` and find some interesting association rules for these shopping baskets.
+
+```{r Q6.1, include = FALSE}
+# load package
+library(arules)
+library(arulesViz)
+# Read the data into the R program and print information of transactions
+tdata <- read.transactions('groceries.txt')
+tdata
+
+str(tdata)
+
+# Get association rules at the minimum support of 0.003 and the minimum confidence of 0.3.
+set.seed(1)
+associa_rules = apriori(data = tdata,  
+                        parameter = list(support = 0.003,  
+                                         confidence = 0.3)) 
+```
+
+```{r Q6.2, warning = FALSE, fig.align='center', fig.height = 3, fig.width = 5}
+# plot the most frequent items (top 10)
+itemFrequencyPlot(tdata, topN = 10)
+
+# Visualizing the rules
+inspect(sort(associa_rules, by = 'lift')[1:10])
+plot(associa_rules, method = "graph",  
+     measure = "confidence", shading = "lift")
+```
+
+
+
+
+
